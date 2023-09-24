@@ -4,7 +4,9 @@ import Form from "react-bootstrap/Form";
 import Item from "./Item";
 import Modal from "react-bootstrap/Modal";
 import ListGroup from "react-bootstrap/ListGroup";
-import axios from "axios";
+import axios from "axios"; 
+
+import Authenticate from "./Auth/Authenticate";
 // import addNotification from "react-push-notification";
 // import logo from "./images/checklist.png";
 
@@ -15,28 +17,43 @@ function Dashboard(props) {
     //   {id:2,body:"Get jam",completed:true},
     // ]);
     const [todoList, setTodoList] = useState([]);
-    const backend_host="172.20.10.5";
+    const backend_host="localhost";
     const backend_port=1212;
     const [todoListSearch,setTodoListSearch]=useState([]);
     const [show, setShow] = useState(false);
     const [searchWord,setSearchWord] = useState("");
+    const [user, setUser] = useState({});
     useEffect(()=>{
+      const token=localStorage.getItem("jwtToken");
+
+      console.log("token");
+      console.log(token);
+      const data_to_send={token:token};
+      axios.post(`http://${backend_host}:${backend_port}/auth/check`,data_to_send).then((result)=>{
+        if (result.data.userObj) {
+          console.log("success");
+          setUser(result.data.userObj);
+          axios
+            .get(
+              `http://${backend_host}:${backend_port}/api/task/index/${result.data.userObj.id}`
+            )
+            .then((result) => {
+              if (result.data.tasks !== undefined) {
+                setTodoList([]);
+
+                setTodoList([...result.data.tasks]);
+                setTodoListSearch([...result.data.tasks]);
+                console.log(todoList);
+              }
+            });
+        }
+        else{
+          return
+        }
+      });
+      console.log("before index");
+      console.log(user);
       
-      axios
-        .get(
-          `http://${backend_host}:${backend_port}/api/task/index`
-        )
-        .then((result) => {
-          if (result.data.tasks !== undefined) {
-
-            setTodoList([]);
-
-
-            setTodoList( [...result.data.tasks]);
-            setTodoListSearch([...result.data.tasks]);
-            console.log(todoList);
-          }
-        });
 
         // todoList.forEach((element) => {
         //   addNotification({
@@ -55,6 +72,18 @@ function Dashboard(props) {
         handleAddWorkAndClose();
       }
     }
+    const do_login=(user)=>{
+        setUser(user);
+        setTodoList([]);
+        axios
+          .get(`http://${backend_host}:${backend_port}/api/task/index/${user.id}`)
+          .then((result) => {
+            if (result.data.tasks !== undefined) {
+              setTodoList([...result.data.tasks]);
+              console.log(todoList);
+            }
+          });
+    }
     const handleAddWorkAndClose = () => {
       
       if (newItemTitle) {
@@ -65,7 +94,7 @@ function Dashboard(props) {
         const data_to_store = { body: newItemTitle };
         axios
           .post(
-            `http://${backend_host}:${backend_port}/api/task/store`,
+            `http://${backend_host}:${backend_port}/api/task/store/${user.id}`,
             data_to_store,
             {
               headers: {
@@ -83,6 +112,13 @@ function Dashboard(props) {
     };
 
     const handleShow = () => setShow(true);
+    const handleSignout = () => {
+      localStorage.clear("jwtToken")
+
+      setUser({});
+      
+    };
+
     const findTodoById = (id)=>{
       todoList.map(
         (todo)=>{
@@ -143,7 +179,7 @@ function Dashboard(props) {
       if (search_word.length==0) {
         setTodoList([]);
          axios
-           .get(`http://${backend_host}:${backend_port}/api/task/index`)
+           .get(`http://${backend_host}:${backend_port}/api/task/index/${user.id}`)
            .then((result) => {
             
              if (result.data.tasks !== undefined) {
@@ -395,11 +431,14 @@ function Dashboard(props) {
         .then((result) => console.log(result));
     };
     // Methods End
+    if (Object.keys( user).length!=0) {
   return (
     <div>
-      <div className="row" >
+      
+        <div>
+        <div className="row" >
         <div className="col-6">
-          <h1>{props.name}</h1>
+          <h1>{user.username}'s {props.name}</h1>
         </div>
         <div className="col-6 text-end mt-2">
           <input
@@ -475,7 +514,10 @@ function Dashboard(props) {
       </div>
 
       <Button className="mt-4" variant="success" onClick={handleShow}>
-        Add Work
+        <i className="fa fa-plus-circle"></i>
+      </Button>
+      <Button className="mt-4" variant="danger ms-3" onClick={handleSignout}>
+        <i className="fa fa-sign-out"></i>
       </Button>
 
       <Modal show={show} onHide={handleClose}>
@@ -504,8 +546,17 @@ function Dashboard(props) {
           </Button>
         </Modal.Footer>
       </Modal>
+      </div>
+      
+      
     </div>
   );
+        }
+        else{
+          return(
+          <Authenticate do_login={do_login} />
+          );
+        }
 }
 
 export default Dashboard;

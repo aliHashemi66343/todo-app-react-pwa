@@ -9,7 +9,7 @@ function App() {
   return (
     <div className="App">
     <div className="container">
-      <Dashboard name="My To Do"/>
+      <Dashboard name="To Do"/>
     </div>
 
    
